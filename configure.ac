@@ -4292,6 +4292,15 @@ AS_HELP_STRING([--enable-render-d3d], [enable the Direct3D render driver [[defau
             have_timers=yes
         fi
         ;;
+    *-*-msdosdjgpp*)
+        ARCH=dos
+        CheckVisibilityHidden
+        CheckDeclarationAfterStatement
+        CheckDummyVideo
+        CheckDiskAudio
+        CheckDummyAudio
+        CheckDLOPEN
+        ;;
     *)
         AC_MSG_ERROR([
 *** Unsupported host:  Please add to configure.ac
