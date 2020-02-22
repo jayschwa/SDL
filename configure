@@ -25796,6 +25796,15 @@ $as_echo "#define SDL_TIMER_UNIX 1" >>confdefs.h
             have_timers=yes
         fi
         ;;
+    *-*-msdosdjgpp*)
+        ARCH=dos
+        CheckVisibilityHidden
+        CheckDeclarationAfterStatement
+        CheckDummyVideo
+        CheckDiskAudio
+        CheckDummyAudio
+        CheckDLOPEN
+        ;;
     *)
         as_fn_error $? "
 *** Unsupported host:  Please add to configure.ac
