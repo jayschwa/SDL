@@ -16856,6 +16856,26 @@ fi
         ;;
     esac
 
+    case "$host" in
+    *-*-msdosdjgpp*)
+        { $as_echo "$as_me:${as_lineno-$LINENO}: skipping unfinished fseeko64 in DJGPP" >&5
+$as_echo "$as_me: skipping unfinished fseeko64 in DJGPP" >&6;}
+        ;;
+    *)
+        for ac_func in fseeko64
+do :
+  ac_fn_c_check_func "$LINENO" "fseeko64" "ac_cv_func_fseeko64"
+if test "x$ac_cv_func_fseeko64" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_FSEEKO64 1
+_ACEOF
+
+fi
+done
+
+        ;;
+    esac
+
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for working memcmp" >&5
 $as_echo_n "checking for working memcmp... " >&6; }
 if ${ac_cv_func_memcmp_working+:} false; then :
@@ -17068,7 +17088,7 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 fi
 
-    for ac_func in malloc calloc realloc free getenv setenv putenv unsetenv qsort abs bcopy memset memcpy memmove wcslen wcslcpy wcslcat wcsdup wcsstr wcscmp wcsncmp wcscasecmp _wcsicmp wcsncasecmp _wcsnicmp strlen strlcpy strlcat _strrev _strupr _strlwr strchr strrchr strstr strtok_r itoa _ltoa _uitoa _ultoa strtol strtoul _i64toa _ui64toa strtoll strtoull atoi atof strcmp strncmp _stricmp strcasecmp _strnicmp strncasecmp vsscanf vsnprintf fopen64 fseeko fseeko64 sigaction setjmp nanosleep sysconf sysctlbyname getauxval elf_aux_info clock_gettime_nsec_np poll _Exit
+    for ac_func in malloc calloc realloc free getenv setenv putenv unsetenv qsort abs bcopy memset memcpy memmove wcslen wcslcpy wcslcat wcsdup wcsstr wcscmp wcsncmp wcscasecmp _wcsicmp wcsncasecmp _wcsnicmp strlen strlcpy strlcat _strrev _strupr _strlwr strchr strrchr strstr strtok_r itoa _ltoa _uitoa _ultoa strtol strtoul _i64toa _ui64toa strtoll strtoull atoi atof strcmp strncmp _stricmp strcasecmp _strnicmp strncasecmp vsscanf vsnprintf fopen64 fseeko sigaction setjmp nanosleep sysconf sysctlbyname getauxval elf_aux_info clock_gettime_nsec_np poll _Exit
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
