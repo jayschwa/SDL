@@ -902,6 +902,7 @@ enable_sdl_dlopen
 enable_hidapi
 enable_hidapi_libusb
 enable_clock_gettime
+enable_uclock
 enable_rpath
 enable_backgrounding_signal
 enable_foregrounding_signal
@@ -1696,6 +1697,8 @@ Optional Features:
   --enable-clock_gettime  use clock_gettime() instead of gettimeofday() on
                           UNIX [default=yes]
   --enable-rpath          use an rpath when linking SDL [default=yes]
+  --enable-uclock         use uclock() for performance counter on DOS
+                          [default=yes]
   --enable-backgrounding-signal
                           number to use for magic backgrounding signal or 'no'
                           [default=no]
@@ -24819,6 +24822,30 @@ $as_echo "#define HAVE_CLOCK_GETTIME 1" >>confdefs.h
     fi
 }
 
+CheckUCLOCK()
+{
+    # Check whether --enable-uclock was given.
+if test "${enable_uclock+set}" = set; then :
+  enableval=$enable_uclock;
+else
+  enable_uclock=yes
+fi
+
+    if test x$enable_uclock = xyes; then
+        for ac_func in uclock
+do :
+  ac_fn_c_check_func "$LINENO" "uclock" "ac_cv_func_uclock"
+if test "x$ac_cv_func_uclock" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_UCLOCK 1
+_ACEOF
+
+fi
+done
+
+    fi
+}
+
 CheckLinuxVersion()
 {
     ac_fn_c_check_header_mongrel "$LINENO" "linux/version.h" "ac_cv_header_linux_version_h" "$ac_includes_default"
@@ -25824,6 +25851,16 @@ $as_echo "#define SDL_TIMER_UNIX 1" >>confdefs.h
         CheckDiskAudio
         CheckDummyAudio
         CheckDLOPEN
+        CheckUCLOCK
+
+        # Set up files for the timer library
+        if test x$enable_timers = xyes; then
+
+$as_echo "#define SDL_TIMER_DOS 1" >>confdefs.h
+
+            SOURCES="$SOURCES $srcdir/src/timer/dos/*.c"
+            have_timers=yes
+        fi
         ;;
     *)
         as_fn_error $? "
