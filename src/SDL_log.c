@@ -415,7 +415,7 @@ SDL_LogOutput(void *userdata, int category, SDL_LogPriority priority,
             return;
         }
     }
-#elif defined(__PSP__)
+#elif defined(__MSDOS__) || defined(__PSP__)
     {
         FILE*        pFile;
         pFile = fopen ("SDL_Log.txt", "a");
