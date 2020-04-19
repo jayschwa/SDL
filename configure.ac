@@ -4340,6 +4340,9 @@ AS_HELP_STRING([--enable-render-d3d], [enable the Direct3D render driver [[defau
             SOURCES="$SOURCES $srcdir/src/timer/dos/*.c"
             have_timers=yes
         fi
+
+        # Set up files for shared DOS utilities and event handling
+        SOURCES="$SOURCES $srcdir/src/core/dos/*.c"
         ;;
     *)
         AC_MSG_ERROR([
