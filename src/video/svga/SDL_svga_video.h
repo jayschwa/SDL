@@ -25,28 +25,11 @@
 
 #include "../SDL_sysvideo.h"
 
-#include "SDL_svga_vbe.h"
-
 typedef struct
 {
-    VBEInfo vbe_info;
-    VBEMode original_mode;
-    void *original_state;
-    size_t state_size;
+    SDL_bool mode_changed;
+    Uint8 original_mode;
 } SDL_DeviceData;
-
-typedef struct
-{
-    VBEMode vbe_mode;
-    VBEFarPtr framebuffer_phys_addr;
-} SDL_DisplayModeData;
-
-typedef struct
-{
-    SDL_bool framebuffer_page;
-    int framebuffer_selector;
-    Uint32 framebuffer_linear_addr;
-} SDL_WindowData;
 
 #endif /* SDL_svga_video_h_ */
 

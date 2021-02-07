@@ -25,16 +25,15 @@
 
 #include "SDL_svga_video.h"
 
+#include <dos.h>
+
 #include "../../core/dos/SDL_dos.h"
 
 #include "SDL_svga_events.h"
 #include "SDL_svga_framebuffer.h"
 #include "SDL_svga_mouse.h"
 
-#define SVGAVID_DRIVER_NAME "svga"
-
-/* Mandatory mode attributes */
-#define VBE_MODE_ATTRS (VBE_MODE_ATTR_GRAPHICS_MODE | VBE_MODE_ATTR_LINEAR_MEM_AVAIL)
+#define SVGAVID_DRIVER_NAME "vga"
 
 /* Initialization/Query functions */
 static int SVGA_VideoInit(_THIS);
@@ -61,13 +60,6 @@ SVGA_CreateDevice(int devindex)
     devdata = (SDL_DeviceData *) SDL_calloc(1, sizeof(*devdata));
     if (!devdata) {
         SDL_OutOfMemory();
-        return NULL;
-    }
-
-    if (SVGA_GetVBEInfo(&devdata->vbe_info) || devdata->vbe_info.vbe_version.major < 2) {
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SVGA: VESA BIOS Extensions v2.0 or greater is required");
-        SDL_Unsupported();
-        SDL_free(devdata);
         return NULL;
     }
 
@@ -99,7 +91,7 @@ SVGA_CreateDevice(int devindex)
 }
 
 VideoBootStrap SVGA_bootstrap = {
-    SVGAVID_DRIVER_NAME, "SDL SVGA video driver",
+    SVGAVID_DRIVER_NAME, "SDL DOS VGA driver",
     SVGA_CreateDevice
 };
 
@@ -107,21 +99,14 @@ static int
 SVGA_VideoInit(_THIS)
 {
     SDL_DeviceData *devdata = _this->driverdata;
+    union REGS regs;
 
     /* Save original video mode. */
-    if (SVGA_GetCurrentVBEMode(&devdata->original_mode, NULL)) {
-        return SDL_SetError("Couldn't query current video mode");
-    }
-
-    /* TODO: Use mode info if it exists. */
+    regs.h.ah = 0xF;
+    int86(0x10, &regs, &regs);
+    devdata->original_mode = regs.h.al;
 
     if (SDL_AddBasicVideoDisplay(NULL) < 0) {
-        return -1;
-    }
-
-    /* Save original video state. */
-    devdata->state_size = SVGA_GetState(&devdata->original_state);
-    if (devdata->state_size < 0) {
         return -1;
     }
 
@@ -139,87 +124,33 @@ SVGA_VideoInit(_THIS)
 static void
 SVGA_GetDisplayModes(_THIS, SDL_VideoDisplay * display)
 {
-    SDL_DeviceData *devdata = _this->driverdata;
     SDL_DisplayMode mode;
-    VBEMode vbe_mode;
-    int index = 0;
 
     SDL_zero(mode);
 
-    for (
-        vbe_mode = SVGA_GetVBEModeAtIndex(&devdata->vbe_info, index++);
-        vbe_mode != VBE_MODE_LIST_END;
-        vbe_mode = SVGA_GetVBEModeAtIndex(&devdata->vbe_info, index++)
-    ) {
-        SDL_DisplayModeData *modedata;
-        VBEModeInfo info;
-        int status = SVGA_GetVBEModeInfo(vbe_mode, &info);
+    mode.format = SDL_PIXELFORMAT_INDEX8;
+    mode.w = 320;
+    mode.h = 200;
 
-        if (status) {
-            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "SVGA_GetVBEModeInfo failed: %d", status);
-            return;
-        }
-
-        /* Mode must support graphics with a linear framebuffer. */
-        if ((info.mode_attributes & VBE_MODE_ATTRS) != VBE_MODE_ATTRS) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "SVGA: Ignoring mode 0x%X: Bad attributes", vbe_mode);
-            continue;
-        }
-
-        /* Mode must be a known pixel format. */
-        mode.format = SVGA_GetPixelFormat(&info);
-        if (mode.format == SDL_PIXELFORMAT_UNKNOWN) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "SVGA: Ignoring mode 0x%X: Bad pixel format", vbe_mode);
-            continue;
-        }
-
-        /* Mode must be capable of double buffering. */
-        if (!info.number_of_image_pages) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "SVGA: Ignoring mode 0x%X: No double-buffering", vbe_mode);
-            continue;
-        }
-
-        /* Scan lines must be 4-byte aligned to match SDL surface pitch. */
-        if (info.bytes_per_scan_line % 4 != 0) {
-            SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "SVGA: Ignoring mode 0x%X: Bad pitch", vbe_mode);
-            continue;
-        }
-
-        /* Allocate display mode internal data. */
-        modedata = (SDL_DisplayModeData *) SDL_calloc(1, sizeof(*modedata));
-        if (!modedata) {
-            return;
-        }
-
-        mode.w = info.x_resolution;
-        mode.h = info.y_resolution;
-        mode.driverdata = modedata;
-        modedata->vbe_mode = vbe_mode;
-        modedata->framebuffer_phys_addr = info.phys_base_ptr;
-
-        if (!SDL_AddDisplayMode(display, &mode)) {
-            SDL_free(modedata);
-        }
-    }
-
-    SDL_LogDebug(SDL_LOG_CATEGORY_VIDEO, "SVGA: VBE lists %d modes", index - 1);
+    SDL_AddDisplayMode(display, &mode);
 }
 
 static int
 SVGA_SetDisplayMode(_THIS, SDL_VideoDisplay * display, SDL_DisplayMode * mode)
 {
-    SDL_DisplayModeData *modedata = mode->driverdata;
+    SDL_DeviceData *devdata = _this->driverdata;
+    union REGS regs;
 
-    if (!modedata) {
-        return SDL_SetError("Missing display mode data");
+    if (mode->format != SDL_PIXELFORMAT_INDEX8 || mode->w != 320 || mode->h != 200) {
+        return SDL_SetError("Invalid display mode");
     }
 
-    if (SVGA_SetVBEMode(modedata->vbe_mode)) {
-        /* TODO: Include VBE error message. */
-        return SDL_SetError("Couldn't set VBE display mode");
-    }
+    /* Switch to video mode. */
+    regs.h.ah = 0;
+    regs.h.al = 0x13;
+    int86(0x10, &regs, &regs);
 
-    /* TODO: Switch to 8 bit palette format, if possible and relevant. */
+    devdata->mode_changed = SDL_TRUE;
 
     DOS_InitMouse(); /* TODO: Is this necessary when video mode changes? */
 
@@ -231,15 +162,13 @@ SVGA_VideoQuit(_THIS)
 {
     SDL_DeviceData *devdata = _this->driverdata;
 
-    /* Restore original video state. */
-    if (devdata->original_state) {
-        SVGA_SetState(devdata->original_state, devdata->state_size);
-        SDL_free(devdata->original_state);
-    }
-
     /* Restore original video mode. */
-    if (devdata->original_mode) {
-        SVGA_SetVBEMode(devdata->original_mode);
+    if (devdata->mode_changed) {
+        union REGS regs;
+
+        regs.h.ah = 0;
+        regs.h.al = devdata->original_mode;
+        int86(0x10, &regs, &regs);
     }
 
     SDL_DOS_Quit();
@@ -249,19 +178,7 @@ SVGA_VideoQuit(_THIS)
 static int
 SVGA_CreateWindow(_THIS, SDL_Window * window)
 {
-    SDL_WindowData *windata;
-
     /* TODO: Allow only one window. */
-
-    /* Allocate window internal data. */
-    windata = (SDL_WindowData *) SDL_calloc(1, sizeof(SDL_WindowData));
-    if (!windata) {
-        return SDL_OutOfMemory();
-    }
-    window->driverdata = windata;
-
-    /* Set framebuffer selector to sentinel value. */
-    windata->framebuffer_selector = -1;
 
     /* Window is always fullscreen. */
     /* QUESTION: Is this appropriate, or should an error be returned instead? */
@@ -273,8 +190,6 @@ SVGA_CreateWindow(_THIS, SDL_Window * window)
 static void
 SVGA_DestroyWindow(_THIS, SDL_Window * window)
 {
-    SDL_free(window->driverdata);
-    window->driverdata = NULL;
 }
 
 #endif /* SDL_VIDEO_DRIVER_SVGA */

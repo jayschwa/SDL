@@ -22,9 +22,7 @@
 
 #if SDL_VIDEO_DRIVER_SVGA
 
-#include <dpmi.h>
 #include <sys/movedata.h>
-#include <sys/segments.h>
 
 #include "SDL_svga_video.h"
 #include "SDL_svga_framebuffer.h"
@@ -32,12 +30,8 @@
 int
 SDL_SVGA_CreateFramebuffer(_THIS, SDL_Window * window, Uint32 * format, void ** pixels, int *pitch)
 {
-    SDL_DeviceData *devdata = _this->driverdata;
     SDL_DisplayMode mode;
-    SDL_DisplayModeData *modedata;
     SDL_Surface *surface;
-    SDL_WindowData *windata = window->driverdata;
-    __dpmi_meminfo meminfo;
     int w, h;
 
     /* Free the old framebuffer surface. */
@@ -45,31 +39,6 @@ SDL_SVGA_CreateFramebuffer(_THIS, SDL_Window * window, Uint32 * format, void ** 
 
     /* Get data for current mode. */
     if (SDL_GetWindowDisplayMode(window, &mode)) {
-        return -1;
-    }
-    modedata = mode.driverdata;
-
-    /* Map framebuffer's physical address to linear address. */
-    meminfo.address = modedata->framebuffer_phys_addr.segment << 16;
-    meminfo.address += modedata->framebuffer_phys_addr.offset;
-    meminfo.size = devdata->vbe_info.total_memory << 16;
-    if (__dpmi_physical_address_mapping(&meminfo)) {
-        SDL_SVGA_DestroyFramebuffer(_this, window);
-        return -1;
-    }
-    windata->framebuffer_linear_addr = meminfo.address;
-
-    /* Allocate local descriptor to access memory-mapped framebuffer. */
-    windata->framebuffer_selector = __dpmi_allocate_ldt_descriptors(1);
-    if (windata->framebuffer_selector == -1) {
-        SDL_SVGA_DestroyFramebuffer(_this, window);
-        return -1;
-    }
-
-    /* Setup framebuffer descriptor. */
-    if (__dpmi_set_segment_base_address(windata->framebuffer_selector, meminfo.address) ||
-        __dpmi_set_segment_limit(windata->framebuffer_selector, meminfo.size - 1)) {
-        SDL_SVGA_DestroyFramebuffer(_this, window);
         return -1;
     }
 
@@ -81,13 +50,32 @@ SDL_SVGA_CreateFramebuffer(_THIS, SDL_Window * window, Uint32 * format, void ** 
         return -1;
     }
 
-    /* Populate color palette for indexed pixel formats. */
-    if (surface->format->palette) {
-        SDL_Palette *palette = surface->format->palette;
-        if (SVGA_GetPaletteData(palette->colors, palette->ncolors)) {
-            SDL_SVGA_DestroyFramebuffer(_this, window);
-            return -1;
-        }
+    /* Populate color palette. */
+    if (surface->format->palette != NULL) {
+        /* TODO: Read palette from VGA. */
+        Uint32 *colors = surface->format->palette->colors;
+
+        SDL_memset(colors, 0, surface->format->palette->ncolors * sizeof(*colors));
+
+        /* Dark colors */
+        colors[0] = SDL_Swap32(0x000000FF); // Black
+        colors[1] = SDL_Swap32(0x0000AAFF); // Blue
+        colors[2] = SDL_Swap32(0x00AA00FF); // Green
+        colors[3] = SDL_Swap32(0x00AAAAFF); // Cyan
+        colors[4] = SDL_Swap32(0xAA0000FF); // Red
+        colors[5] = SDL_Swap32(0xAA00AAFF); // Magenta
+        colors[6] = SDL_Swap32(0xAA5500FF); // Brown
+        colors[7] = SDL_Swap32(0xAAAAAAFF); // Light gray
+
+        /* Bright colors */
+        colors[8] = SDL_Swap32(0x555555FF); // Dark gray
+        colors[9] = SDL_Swap32(0x5555FFFF); // Blue
+        colors[10] = SDL_Swap32(0x55FF55FF); // Green
+        colors[11] = SDL_Swap32(0x55FFFFFF); // Cyan
+        colors[12] = SDL_Swap32(0xFF5555FF); // Red
+        colors[13] = SDL_Swap32(0xFF55FFFF); // Magenta
+        colors[14] = SDL_Swap32(0xFFFF55FF); // Yellow
+        colors[15] = SDL_Swap32(0xFFFFFFFF); // White
     }
 
     /* Save data and set output parameters. */
@@ -104,9 +92,6 @@ static void
 CopyCursorPixels(SDL_Window * window)
 {
     SDL_Surface *surface = window->surface;
-    SDL_WindowData *windata = window->driverdata;
-    size_t surface_size = surface->pitch * surface->h;
-    size_t framebuffer_offset = windata->framebuffer_page ? surface_size : 0;
     Uint32 color = SDL_MapRGB(surface->format, 0xFF, 0, 0);
     int i, k, x, y;
 
@@ -118,9 +103,9 @@ CopyCursorPixels(SDL_Window * window)
 
     for (i = 0; i < 4; i++) {
         for (k = 0; k < 4; k++) {
-            movedata(_my_ds(), (uintptr_t)&color, windata->framebuffer_selector,
-                framebuffer_offset + surface->pitch * (y + i) + (x + k) * surface->format->BytesPerPixel,
-                surface->format->BytesPerPixel);
+            dosmemput(&color, surface->format->BytesPerPixel,
+                0xA0000 + surface->pitch * (y + i) + (x + k) * surface->format->BytesPerPixel
+            );
         }
     }
 }
@@ -128,29 +113,17 @@ CopyCursorPixels(SDL_Window * window)
 int
 SDL_SVGA_UpdateFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, int numrects)
 {
-    SDL_WindowData *windata = window->driverdata;
     SDL_Surface *surface = window->surface;
-    size_t framebuffer_offset, surface_size;
 
-    if (!surface) {
-        return SDL_SetError("Missing SVGA surface");
+    if (surface == NULL) {
+        return SDL_SetError("Missing VGA surface");
     }
 
-    surface_size = surface->pitch * surface->h;
+    /* Copy surface pixels to VGA memory. */
+    dosmemput(surface->pixels, 320 * 200, 0xA0000);
 
-    /* Flip the active page flag. */
-    windata->framebuffer_page = !windata->framebuffer_page;
-    framebuffer_offset = windata->framebuffer_page ? surface_size : 0;
-
-    /* Copy surface pixels to hidden framebuffer. */
-    movedata(_my_ds(), (uintptr_t)surface->pixels, windata->framebuffer_selector,
-        framebuffer_offset, surface_size);
-
-    /* Copy cursor pixels to hidden framebuffer. */
-    CopyCursorPixels(window);
-
-    /* Display fresh page to screen. */
-    SVGA_SetDisplayStart(0, windata->framebuffer_page ? surface->h : 0); 
+    /* Copy cursor pixels to VGA memory. */
+    // CopyCursorPixels(window);
 
     return 0;
 }
@@ -158,27 +131,12 @@ SDL_SVGA_UpdateFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, i
 void
 SDL_SVGA_DestroyFramebuffer(_THIS, SDL_Window * window)
 {
-    SDL_WindowData *windata = window->driverdata;
+    SDL_Surface *surface = window->surface;
 
     /* Destroy surface. */
-    SDL_FreeSurface(window->surface);
-    window->surface = NULL;
     window->surface_valid = SDL_FALSE;
-
-    /* Deallocate local descriptor for framebuffer. */
-    if (windata->framebuffer_selector != -1) {
-        __dpmi_free_ldt_descriptor(windata->framebuffer_selector);
-        windata->framebuffer_selector = -1;
-    }
-
-    /* Unmap framebuffer physical address. */
-    if (windata->framebuffer_linear_addr) {
-        __dpmi_meminfo meminfo;
-
-        meminfo.address = windata->framebuffer_linear_addr;
-        __dpmi_free_physical_address_mapping(&meminfo);
-        windata->framebuffer_linear_addr = 0;
-    }
+    window->surface = NULL;
+    SDL_FreeSurface(surface);
 }
 
 #endif /* SDL_VIDEO_DRIVER_SVGA */
