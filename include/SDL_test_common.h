@@ -34,7 +34,10 @@
 
 #include "SDL.h"
 
-#if defined(__PSP__)
+#if defined(__MSDOS__)
+#define DEFAULT_WINDOW_WIDTH  320
+#define DEFAULT_WINDOW_HEIGHT 200
+#elif defined(__PSP__)
 #define DEFAULT_WINDOW_WIDTH  480
 #define DEFAULT_WINDOW_HEIGHT 272
 #elif defined(__VITA__)

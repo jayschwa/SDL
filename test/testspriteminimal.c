@@ -21,8 +21,13 @@
 
 #include "SDL.h"
 
-#define WINDOW_WIDTH    640
-#define WINDOW_HEIGHT   480
+#if defined(__MSDOS__)
+#define WINDOW_WIDTH  320
+#define WINDOW_HEIGHT 200
+#else
+#define WINDOW_WIDTH  640
+#define WINDOW_HEIGHT 480
+#endif
 #define NUM_SPRITES     100
 #define MAX_SPEED       1
 
