@@ -22,17 +22,27 @@
 
 #if SDL_VIDEO_DRIVER_SVGA
 
+#include <pc.h>
 #include <sys/movedata.h>
 
 #include "SDL_svga_video.h"
 #include "SDL_svga_framebuffer.h"
+
+static void
+VGA_GetPaletteColor(int index, SDL_Color * color)
+{
+    outp(0x03C8, index);
+    color->r = inp(0x03C9) * UINT8_MAX / 63;
+    color->g = inp(0x03C9) * UINT8_MAX / 63;
+    color->b = inp(0x03C9) * UINT8_MAX / 63;
+}
 
 int
 SDL_SVGA_CreateFramebuffer(_THIS, SDL_Window * window, Uint32 * format, void ** pixels, int *pitch)
 {
     SDL_DisplayMode mode;
     SDL_Surface *surface;
-    int w, h;
+    int i, w, h;
 
     /* Free the old framebuffer surface. */
     SDL_SVGA_DestroyFramebuffer(_this, window);
@@ -52,30 +62,10 @@ SDL_SVGA_CreateFramebuffer(_THIS, SDL_Window * window, Uint32 * format, void ** 
 
     /* Populate color palette. */
     if (surface->format->palette != NULL) {
-        /* TODO: Read palette from VGA. */
-        Uint32 *colors = surface->format->palette->colors;
-
-        SDL_memset(colors, 0, surface->format->palette->ncolors * sizeof(*colors));
-
-        /* Dark colors */
-        colors[0] = SDL_Swap32(0x000000FF); // Black
-        colors[1] = SDL_Swap32(0x0000AAFF); // Blue
-        colors[2] = SDL_Swap32(0x00AA00FF); // Green
-        colors[3] = SDL_Swap32(0x00AAAAFF); // Cyan
-        colors[4] = SDL_Swap32(0xAA0000FF); // Red
-        colors[5] = SDL_Swap32(0xAA00AAFF); // Magenta
-        colors[6] = SDL_Swap32(0xAA5500FF); // Brown
-        colors[7] = SDL_Swap32(0xAAAAAAFF); // Light gray
-
-        /* Bright colors */
-        colors[8] = SDL_Swap32(0x555555FF); // Dark gray
-        colors[9] = SDL_Swap32(0x5555FFFF); // Blue
-        colors[10] = SDL_Swap32(0x55FF55FF); // Green
-        colors[11] = SDL_Swap32(0x55FFFFFF); // Cyan
-        colors[12] = SDL_Swap32(0xFF5555FF); // Red
-        colors[13] = SDL_Swap32(0xFF55FFFF); // Magenta
-        colors[14] = SDL_Swap32(0xFFFF55FF); // Yellow
-        colors[15] = SDL_Swap32(0xFFFFFFFF); // White
+        SDL_Palette *pal = surface->format->palette;
+        for (i = 0; i < pal->ncolors && i < 256; i++) {
+            VGA_GetPaletteColor(i, &pal->colors[i]);
+        }
     }
 
     /* Save data and set output parameters. */
