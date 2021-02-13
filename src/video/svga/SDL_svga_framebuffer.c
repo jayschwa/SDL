@@ -109,6 +109,10 @@ SDL_SVGA_UpdateFramebuffer(_THIS, SDL_Window * window, const SDL_Rect * rects, i
         return SDL_SetError("Missing VGA surface");
     }
 
+    /* Wait for the start of a vertical blanking interval. */
+    while ((inp(0x03DA) & 0x08));
+    while (!(inp(0x03DA) & 0x08));
+
     /* Copy surface pixels to VGA memory. */
     dosmemput(surface->pixels, 320 * 200, 0xA0000);
 
