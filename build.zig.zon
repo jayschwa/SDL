@@ -1,0 +1,16 @@
+.{
+    .name = "SDL",
+    .version = "3.1.3",
+    .dependencies = .{
+        .sdl = .{
+            .url = "git+https://github.com/libsdl-org/SDL#preview-3.1.3",
+            .hash = "12206a5bacedd2bdd3a56bf9c65d62a593fe0e05be586fb16ee4cc90468a97b95022",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "LICENSE.txt",
+        "README.md",
+    },
+}
