@@ -1,3 +1,3 @@
 # SDL
 
-This is [SDL](https://github.com/libsdl-org/SDL_image) packaged for [Zig](https://ziglang.org).
+This is [SDL](https://github.com/libsdl-org/SDL) packaged for [Zig](https://ziglang.org).
