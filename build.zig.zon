@@ -1,10 +1,10 @@
 .{
     .name = "SDL",
-    .version = "3.1.3",
+    .version = "3.1.6",
     .dependencies = .{
         .sdl = .{
-            .url = "git+https://github.com/libsdl-org/SDL#preview-3.1.3",
-            .hash = "12206a5bacedd2bdd3a56bf9c65d62a593fe0e05be586fb16ee4cc90468a97b95022",
+            .url = "git+https://github.com/libsdl-org/SDL#preview-3.1.6",
+            .hash = "122099f4cc54e09ca76cb1b5c9d32f6809dab17c53c0d81dbc07fb3bf52c2ac8a793",
         },
     },
     .paths = .{
