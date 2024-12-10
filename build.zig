@@ -658,25 +658,37 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
 
     const examples = .{
-        "clear",
-        "primitives",
-        "lines",
-        "points",
-        "rectangles",
+        .{ 1, "clear" },
+        .{ 2, "primitives" },
+        .{ 3, "lines" },
+        .{ 4, "points" },
+        .{ 5, "rectangles" },
+        .{ 6, "textures" },
+        .{ 7, "streaming-textures" },
+        .{ 8, "rotating-textures" },
+        .{ 9, "scaling-textures" },
+        .{ 10, "geometry" },
+        .{ 11, "color-mods" },
+        .{ 14, "viewport" },
+        .{ 15, "cliprect" },
+        .{ 17, "read-pixels" },
+        .{ 18, "debug-text" },
     };
-    inline for (examples, 1..) |example, i| {
+    inline for (examples) |example| {
+        const n, const name = example;
         const exe = b.addExecutable(.{
-            .name = example,
+            .name = name,
             .target = target,
             .optimize = optimize,
         });
-        const src = std.fmt.comptimePrint("examples/renderer/{d:0>2}-{s}/{s}.c", .{ i, example, example });
+        const src = std.fmt.comptimePrint("examples/renderer/{d:0>2}-{s}/{s}.c", .{ n, name, name });
         exe.addCSourceFile(.{
             .file = upstream.path(src),
         });
         exe.linkLibrary(lib);
-        b.installArtifact(exe);
+        b.installArtifact(exe); // FIXME: Install in "examples" directory.
     }
+    b.getInstallStep().dependOn(&b.addInstallBinFile(upstream.path("test/sample.bmp"), "sample.bmp").step);
 }
 
 // General source files.
