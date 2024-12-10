@@ -281,7 +281,7 @@ pub fn build(b: *std.Build) void {
         .SDL_JOYSTICK_EMSCRIPTEN = 0,
         .SDL_JOYSTICK_GAMEINPUT = 0,
         .SDL_JOYSTICK_HAIKU = 0,
-        .SDL_JOYSTICK_HIDAPI = 0,
+        .SDL_JOYSTICK_HIDAPI = 1, // FIXME: Workaround bug in 3.1.6.
         .SDL_JOYSTICK_IOKIT = 0,
         .SDL_JOYSTICK_LINUX = os == .linux,
         .SDL_JOYSTICK_MFI = 0,
@@ -304,7 +304,7 @@ pub fn build(b: *std.Build) void {
 
         // Enable various process implementations
         .SDL_PROCESS_DUMMY = 0,
-        .SDL_PROCESS_POSIX = 0,
+        .SDL_PROCESS_POSIX = is_posix,
         .SDL_PROCESS_WINDOWS = 0,
 
         // Enable various sensor drivers
@@ -316,7 +316,7 @@ pub fn build(b: *std.Build) void {
         .SDL_SENSOR_N3DS = 0,
 
         // Enable various shared object loading systems
-        .SDL_LOADSO_DLOPEN = 0,
+        .SDL_LOADSO_DLOPEN = is_unix,
         .SDL_LOADSO_DUMMY = 0,
         .SDL_LOADSO_LDG = 0,
         .SDL_LOADSO_WINDOWS = 0,
@@ -379,7 +379,7 @@ pub fn build(b: *std.Build) void {
         .SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC_LIBDECOR = 0,
         .SDL_VIDEO_DRIVER_WAYLAND_DYNAMIC_XKBCOMMON = 0,
         .SDL_VIDEO_DRIVER_WINDOWS = 0,
-        .SDL_VIDEO_DRIVER_X11 = 0,
+        .SDL_VIDEO_DRIVER_X11 = os == .linux, // TODO: Detect or use option.
         .SDL_VIDEO_DRIVER_X11_DYNAMIC = 0,
         .SDL_VIDEO_DRIVER_X11_DYNAMIC_XCURSOR = 0,
         .SDL_VIDEO_DRIVER_X11_DYNAMIC_XEXT = 0,
@@ -388,7 +388,7 @@ pub fn build(b: *std.Build) void {
         .SDL_VIDEO_DRIVER_X11_DYNAMIC_XRANDR = 0,
         .SDL_VIDEO_DRIVER_X11_DYNAMIC_XSS = 0,
         .SDL_VIDEO_DRIVER_X11_HAS_XKBLOOKUPKEYSYM = 0,
-        .SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS = 0,
+        .SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS = os == .linux, // TODO: Detect or use option.
         .SDL_VIDEO_DRIVER_X11_XCURSOR = 0,
         .SDL_VIDEO_DRIVER_X11_XDBE = 0,
         .SDL_VIDEO_DRIVER_X11_XFIXES = 0,
@@ -463,11 +463,11 @@ pub fn build(b: *std.Build) void {
         .SDL_FILESYSTEM_N3DS = 0,
 
         // Enable system storage support
-        .SDL_STORAGE_GENERIC = 0,
+        .SDL_STORAGE_GENERIC = is_unix,
         .SDL_STORAGE_STEAM = 0,
 
         // Enable system FSops support
-        .SDL_FSOPS_POSIX = 0,
+        .SDL_FSOPS_POSIX = is_posix,
         .SDL_FSOPS_WINDOWS = 0,
         .SDL_FSOPS_DUMMY = 0,
 
@@ -538,9 +538,145 @@ pub fn build(b: *std.Build) void {
         .files = general_srcs,
     });
 
-    lib.installConfigHeader(config_h);
+    // TODO: Integrate with subsystem detection and flags
+    {
+        lib.addCSourceFiles(.{
+            .root = upstream.path("src"),
+            .files = &.{
+                "core/linux/SDL_evdev.c",
+                "core/linux/SDL_evdev_capabilities.c",
+                "core/linux/SDL_evdev_kbd.c",
+                "core/linux/SDL_threadprio.c",
+
+                "core/unix/SDL_appid.c",
+                "core/unix/SDL_poll.c",
+
+                "dialog/SDL_dialog_utils.c",
+                "dialog/unix/SDL_portaldialog.c",
+                "dialog/unix/SDL_unixdialog.c",
+                "dialog/unix/SDL_zenitydialog.c",
+
+                "filesystem/posix/SDL_sysfsops.c",
+
+                "filesystem/unix/SDL_sysfilesystem.c",
+
+                "haptic/linux/SDL_syshaptic.c",
+
+                "joystick/hidapi/SDL_hidapi_combined.c",
+                "joystick/hidapi/SDL_hidapi_gamecube.c",
+                "joystick/hidapi/SDL_hidapijoystick.c",
+                "joystick/hidapi/SDL_hidapi_luna.c",
+                "joystick/hidapi/SDL_hidapi_ps3.c",
+                "joystick/hidapi/SDL_hidapi_ps4.c",
+                "joystick/hidapi/SDL_hidapi_ps5.c",
+                "joystick/hidapi/SDL_hidapi_rumble.c",
+                "joystick/hidapi/SDL_hidapi_shield.c",
+                "joystick/hidapi/SDL_hidapi_stadia.c",
+                "joystick/hidapi/SDL_hidapi_steam.c",
+                "joystick/hidapi/SDL_hidapi_steamdeck.c",
+                "joystick/hidapi/SDL_hidapi_steam_hori.c",
+                "joystick/hidapi/SDL_hidapi_switch.c",
+                "joystick/hidapi/SDL_hidapi_wii.c",
+                "joystick/hidapi/SDL_hidapi_xbox360.c",
+                "joystick/hidapi/SDL_hidapi_xbox360w.c",
+                "joystick/hidapi/SDL_hidapi_xboxone.c",
+
+                "joystick/linux/SDL_sysjoystick.c",
+                "joystick/steam/SDL_steamcontroller.c",
+
+                "loadso/dlopen/SDL_sysloadso.c",
+
+                "locale/unix/SDL_syslocale.c",
+
+                "main/generic/SDL_sysmain_callbacks.c",
+
+                "misc/unix/SDL_sysurl.c",
+
+                "power/linux/SDL_syspower.c",
+
+                "process/SDL_process.c",
+
+                "process/posix/SDL_posixprocess.c",
+
+                "storage/generic/SDL_genericstorage.c",
+
+                "thread/pthread/SDL_syscond.c",
+                "thread/pthread/SDL_sysmutex.c",
+                "thread/pthread/SDL_sysrwlock.c",
+                "thread/pthread/SDL_syssem.c",
+                "thread/pthread/SDL_systhread.c",
+                "thread/pthread/SDL_systls.c",
+
+                "time/unix/SDL_systime.c",
+
+                "timer/unix/SDL_systimer.c",
+            },
+        });
+
+        lib.addCSourceFiles(.{
+            .root = upstream.path("src"),
+            .files = &.{
+                "video/x11/edid-parse.c",
+                "video/x11/SDL_x11clipboard.c",
+                "video/x11/SDL_x11dyn.c",
+                "video/x11/SDL_x11events.c",
+                "video/x11/SDL_x11framebuffer.c",
+                "video/x11/SDL_x11keyboard.c",
+                "video/x11/SDL_x11messagebox.c",
+                "video/x11/SDL_x11modes.c",
+                "video/x11/SDL_x11mouse.c",
+                "video/x11/SDL_x11opengl.c",
+                "video/x11/SDL_x11opengles.c",
+                "video/x11/SDL_x11pen.c",
+                "video/x11/SDL_x11settings.c",
+                "video/x11/SDL_x11shape.c",
+                "video/x11/SDL_x11touch.c",
+                "video/x11/SDL_x11video.c",
+                "video/x11/SDL_x11vulkan.c",
+                "video/x11/SDL_x11window.c",
+                "video/x11/SDL_x11xfixes.c",
+                "video/x11/SDL_x11xinput2.c",
+                "video/x11/xsettings-client.c",
+            },
+        });
+        lib.linkSystemLibrary("X11");
+        lib.linkSystemLibrary("Xext");
+    }
+
+    lib.installHeadersDirectory(upstream.path("include/SDL3"), "SDL3", .{});
+
+    const revision_h = b.addConfigHeader(.{
+        .style = .{ .cmake = upstream.path("include/build_config/SDL_revision.h.cmake") },
+        .include_path = "SDL3/SDL_revision.h",
+    }, .{
+        .SDL_REVISION = "preview-3.1.6",
+        .SDL_VENDOR_INFO = "allyourcodebase.com",
+    });
+    lib.addConfigHeader(revision_h);
+    lib.installHeader(revision_h.getOutput(), "SDL3/SDL_revision.h");
 
     b.installArtifact(lib);
+
+    const examples = .{
+        "clear",
+        "primitives",
+        "lines",
+        "points",
+        "rectangles",
+    };
+    inline for (examples, 1..) |example, i| {
+        const exe = b.addExecutable(.{
+            .name = example,
+            .target = target,
+            .optimize = optimize,
+        });
+        const src = std.fmt.comptimePrint("examples/renderer/{d:0>2}-{s}/{s}.c", .{ i, example, example });
+        exe.addCSourceFile(.{
+            .file = upstream.path(src),
+        });
+        exe.linkLibrary(lib);
+        b.installArtifact(exe);
+    }
 }
 
 // General source files.
